@@ -1,0 +1,494 @@
+import sys
+import io
+import os
+import re
+
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QTextEdit, QMenuBar, QMenu,
+    QToolBar, QStatusBar, QSplitter, QWidget, QVBoxLayout, QLabel,
+    QFileDialog, QMessageBox, QPlainTextEdit
+)
+from PyQt6.QtGui import (
+    QIcon, QFont, QSyntaxHighlighter, QTextCharFormat, QColor,
+    QTextCursor, QAction
+)
+from PyQt6.QtCore import Qt
+
+from core import (
+    ChineseParser, Translator, get_save_dir, SUPPORTED_LANGS
+)
+
+
+class SyntaxHighlighter(QSyntaxHighlighter):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.lang = 'zh'
+        
+        self.keyword_format = QTextCharFormat()
+        self.keyword_format.setForeground(QColor('#000080'))
+        self.keyword_format.setFontWeight(QFont.Weight.Bold)
+        
+        self.string_format = QTextCharFormat()
+        self.string_format.setForeground(QColor('#008000'))
+        
+        self.comment_format = QTextCharFormat()
+        self.comment_format.setForeground(QColor('#808080'))
+        self.comment_format.setFontItalic(True)
+        
+        self.number_format = QTextCharFormat()
+        self.number_format.setForeground(QColor('#800080'))
+        
+        self.type_format = QTextCharFormat()
+        self.type_format.setForeground(QColor('#008080'))
+        self.type_format.setFontWeight(QFont.Weight.Bold)
+        
+        self.builtin_format = QTextCharFormat()
+        self.builtin_format.setForeground(QColor('#800000'))
+        
+        self.module_format = QTextCharFormat()
+        self.module_format.setForeground(QColor('#0000FF'))
+        self.module_format.setFontItalic(True)
+        
+        self.keywords_zh = [
+            '如果', '否则如果', '否则', '对于', '当', '定义', '类', '返回',
+            '导入', '从', '作为', '尝试', '捕获', '最终', '中断', '继续',
+            '传递', '打印', '开始', '结束', '并', '或', '非', '真', '假',
+            '属于', '不属于', '是', '不是', '提升', '全局', '非局部',
+            '断言', '删除', '运算匹配', '情况'
+        ]
+        
+        self.keywords_en = [
+            'if', 'elif', 'else', 'for', 'while', 'def', 'class', 'return',
+            'import', 'from', 'as', 'try', 'except', 'finally', 'break', 'continue',
+            'pass', 'print', 'begin', 'end', 'and', 'or', 'not', 'True', 'False',
+            'in', 'is', 'raise', 'global', 'nonlocal', 'assert', 'del', 'match', 'case'
+        ]
+        
+        self.types_zh = [
+            '整数', '浮点数', '字符串', '布尔', '列表', '字典', '集合', '元组',
+            '任意', '空', '可调用', '可迭代'
+        ]
+        
+        self.types_en = [
+            'int', 'float', 'str', 'bool', 'list', 'dict', 'set', 'tuple',
+            'any', 'None', 'callable', 'iterable'
+        ]
+        
+        self.builtins_zh = [
+            '打印', '输入', '长度', '类型', '整数', '浮点数', '字符串', '布尔',
+            '列表', '字典', '合集', '元组', '范围', '求和', '最大值', '最小值',
+            '排序', '枚举', '压缩', '打开'
+        ]
+        
+        self.builtins_en = [
+            'print', 'input', 'len', 'type', 'int', 'float', 'str', 'bool',
+            'list', 'dict', 'set', 'tuple', 'range', 'sum', 'max', 'min',
+            'sorted', 'enumerate', 'zip', 'open'
+        ]
+        
+        self.modules_zh = [
+            '时间', '日期时间', '数学', '随机', '文件', '系统', '操作系统', '海龟',
+            '绘图', '数组', '集合', '正则', '网络', 'JSON', 'CSV', 'XML',
+            '线程', '进程', '队列', '日志', '哈希', '统计', '小数', '分数', '路径'
+        ]
+    
+    def highlightBlock(self, text):
+        try:
+            comment_start = text.find('#')
+            if comment_start != -1:
+                self.setFormat(comment_start, len(text) - comment_start, self.comment_format)
+                text = text[:comment_start]
+            
+            string_pattern = re.compile(r'"([^"\\]|\\.)*"|\'([^\'\\]|\\.)*\'')
+            for match in string_pattern.finditer(text):
+                self.setFormat(match.start(), match.end() - match.start(), self.string_format)
+            
+            number_pattern = re.compile(r'\b\d+\.?\d*\b')
+            for match in number_pattern.finditer(text):
+                self.setFormat(match.start(), match.end() - match.start(), self.number_format)
+            
+            keywords = self.keywords_zh if self.lang == 'zh' else self.keywords_en
+            for keyword in keywords:
+                pattern = re.compile(r'\b' + re.escape(keyword) + r'\b')
+                for match in pattern.finditer(text):
+                    self.setFormat(match.start(), match.end() - match.start(), self.keyword_format)
+            
+            types = self.types_zh if self.lang == 'zh' else self.types_en
+            for type_name in types:
+                pattern = re.compile(r'\b' + re.escape(type_name) + r'\b')
+                for match in pattern.finditer(text):
+                    self.setFormat(match.start(), match.end() - match.start(), self.type_format)
+            
+            builtins = self.builtins_zh if self.lang == 'zh' else self.builtins_en
+            for func_name in builtins:
+                pattern = re.compile(r'\b' + re.escape(func_name) + r'\b')
+                for match in pattern.finditer(text):
+                    self.setFormat(match.start(), match.end() - match.start(), self.builtin_format)
+            
+            if self.lang == 'zh':
+                for module_name in self.modules_zh:
+                    import_pattern = re.compile(r'导入\s+' + re.escape(module_name))
+                    from_pattern = re.compile(r'从\s+' + re.escape(module_name))
+                    for match in import_pattern.finditer(text):
+                        start = match.start() + 2
+                        end = match.end()
+                        self.setFormat(start, end - start, self.module_format)
+                    for match in from_pattern.finditer(text):
+                        start = match.start() + 1
+                        end = match.end()
+                        self.setFormat(start, end - start, self.module_format)
+        except Exception as e:
+            pass
+    
+    def set_lang(self, lang):
+        self.lang = lang
+        self.rehighlight()
+
+
+class ZhIdle(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        
+        self.current_file = None
+        self.parser = ChineseParser()
+        self.translator = Translator()
+        self.lang = 'zh'
+        
+        self.setup_ui()
+    
+    def setup_ui(self):
+        self.setWindowTitle(self.tr('title'))
+        self.setGeometry(100, 100, 1000, 600)
+        
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        
+        self.splitter = QSplitter(Qt.Orientation.Vertical)
+        self.splitter.setSizes([400, 200])
+        
+        self.editor = QPlainTextEdit()
+        self.editor.setFont(QFont('Consolas', 12))
+        self.highlighter = SyntaxHighlighter(self.editor.document())
+        self.splitter.addWidget(self.editor)
+        
+        self.output_frame = QWidget()
+        self.output_layout = QVBoxLayout(self.output_frame)
+        
+        self.output_label = QLabel(self.tr('output'))
+        font = self.output_label.font()
+        font.setBold(True)
+        self.output_label.setFont(font)
+        self.output_layout.addWidget(self.output_label)
+        
+        self.output = QTextEdit()
+        self.output.setFont(QFont('Consolas', 11))
+        self.output.setReadOnly(True)
+        self.output.setStyleSheet('background-color: #f0f0f0')
+        self.output_layout.addWidget(self.output)
+        
+        self.splitter.addWidget(self.output_frame)
+        
+        main_layout = QVBoxLayout(self.central_widget)
+        main_layout.addWidget(self.splitter)
+        
+        self.create_menubar()
+        self.create_toolbar()
+        
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage(self.tr('ready'))
+        
+        self.editor.textChanged.connect(self.on_text_changed)
+    
+    def create_menubar(self):
+        menubar = QMenuBar()
+        
+        file_menu = QMenu(self.tr('file'), self)
+        file_menu.addAction(self.tr('new'), self.new_file)
+        file_menu.addAction(self.tr('open'), self.open_file)
+        file_menu.addAction(self.tr('save'), self.save_file)
+        file_menu.addAction(self.tr('save_as'), self.save_as_file)
+        file_menu.addSeparator()
+        file_menu.addAction(self.tr('exit'), self.close)
+        menubar.addMenu(file_menu)
+        
+        run_menu = QMenu(self.tr('run'), self)
+        run_menu.addAction(self.tr('run'), self.run_code)
+        run_menu.addAction(self.tr('clear_output'), self.clear_output)
+        menubar.addMenu(run_menu)
+        
+        lang_menu = QMenu(self.tr('language'), self)
+        lang_menu.addAction(SUPPORTED_LANGS['zh']['native'], lambda: self.set_lang('zh'))
+        lang_menu.addAction(SUPPORTED_LANGS['en']['native'], lambda: self.set_lang('en'))
+        lang_menu.addAction(SUPPORTED_LANGS['ja']['native'], lambda: self.set_lang('ja'))
+        lang_menu.addAction(SUPPORTED_LANGS['ko']['native'], lambda: self.set_lang('ko'))
+        lang_menu.addAction(SUPPORTED_LANGS['fr']['native'], lambda: self.set_lang('fr'))
+        lang_menu.addAction(SUPPORTED_LANGS['de']['native'], lambda: self.set_lang('de'))
+        lang_menu.addAction(SUPPORTED_LANGS['es']['native'], lambda: self.set_lang('es'))
+        menubar.addMenu(lang_menu)
+        
+        help_menu = QMenu(self.tr('help'), self)
+        help_menu.addAction(self.tr('about'), self.show_about)
+        menubar.addMenu(help_menu)
+        
+        self.setMenuBar(menubar)
+    
+    def create_toolbar(self):
+        self.toolbar = QToolBar()
+        self.toolbar.addAction(QIcon(), self.tr('new'), self.new_file)
+        self.toolbar.addAction(QIcon(), self.tr('open'), self.open_file)
+        self.toolbar.addAction(QIcon(), self.tr('save'), self.save_file)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(QIcon(), self.tr('run'), self.run_code)
+        self.toolbar.addAction(QIcon(), self.tr('clear_output'), self.clear_output)
+        self.addToolBar(self.toolbar)
+    
+    def tr(self, key):
+        return self.translator.get_ui_text(key)
+    
+    def on_text_changed(self):
+        if self.current_file:
+            filename = os.path.basename(self.current_file)
+            self.setWindowTitle(f"{filename}* - {self.tr('title')}")
+        else:
+            self.setWindowTitle(f"未命名* - {self.tr('title')}")
+    
+    def new_file(self):
+        if self.has_unsaved_changes():
+            return
+        self.editor.clear()
+        self.current_file = None
+        self.setWindowTitle(f"未命名 - {self.tr('title')}")
+        self.status_bar.showMessage(self.tr('new_file'))
+    
+    def open_file(self):
+        if self.has_unsaved_changes():
+            return
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, self.tr('open'), '',
+            '中蟒文件 (*.sn);;所有文件 (*.*)'
+        )
+        if file_path:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            self.editor.setPlainText(content)
+            self.current_file = file_path
+            filename = os.path.basename(file_path)
+            self.setWindowTitle(f"{filename} - {self.tr('title')}")
+            
+            detected_lang = self.detect_language_from_content(content)
+            if detected_lang and detected_lang != self.lang:
+                self.set_lang(detected_lang)
+                lang_name = SUPPORTED_LANGS.get(detected_lang, {}).get('native', detected_lang)
+                self.status_bar.showMessage(f"{self.tr('open_file').format(filename)} | {self.tr('lang_changed').format(lang_name)}")
+            else:
+                self.status_bar.showMessage(self.tr('open_file').format(filename))
+    
+    def detect_language_from_content(self, content):
+        """从源代码内容中检测语言声明"""
+        patterns = [
+            r'#\s*语言\s*[:=]\s*(\w+)',
+            r'#\s*language\s*[:=]\s*(\w+)',
+            r'#\s*lang\s*[:=]\s*(\w+)'
+        ]
+        lines = content.split('\n')[:5]
+        for line in lines:
+            for pattern in patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    detected_lang = match.group(1).lower()
+                    if detected_lang in SUPPORTED_LANGS:
+                        return detected_lang
+        return None
+    
+    def save_file(self):
+        if self.current_file:
+            content = self.editor.toPlainText()
+            with open(self.current_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            filename = os.path.basename(self.current_file)
+            self.setWindowTitle(f"{filename} - {self.tr('title')}")
+            self.status_bar.showMessage(self.tr('save_file').format(filename))
+        else:
+            self.save_as_file()
+    
+    def save_as_file(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, self.tr('save_as'), '',
+            '中蟒文件 (*.sn);;所有文件 (*.*)'
+        )
+        if file_path:
+            content = self.editor.toPlainText()
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self.current_file = file_path
+            filename = os.path.basename(file_path)
+            self.setWindowTitle(f"{filename} - {self.tr('title')}")
+            self.status_bar.showMessage(self.tr('save_file').format(filename))
+    
+    def has_unsaved_changes(self):
+        cursor = self.editor.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        current_content = cursor.selectedText()
+        
+        if self.current_file:
+            with open(self.current_file, 'r', encoding='utf-8') as f:
+                original_content = f.read()
+            if current_content == original_content:
+                return False
+        
+        reply = QMessageBox.question(
+            self, self.tr('unsaved_changes'),
+            self.tr('save_changes'),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.save_file()
+            return False
+        elif reply == QMessageBox.StandardButton.Cancel:
+            return True
+        return False
+    
+    def set_lang(self, lang):
+        self.lang = lang
+        self.parser = ChineseParser(lang=lang)
+        self.translator.set_lang(lang)
+        self.highlighter.set_lang(lang)
+        
+        self.save_translated_json(lang)
+        
+        lang_name = SUPPORTED_LANGS.get(lang, {}).get('native', lang)
+        self.status_bar.showMessage(self.tr('lang_changed').format(lang_name))
+        
+        self.update_ui_text()
+    
+    def update_ui_text(self):
+        self.setWindowTitle(self.tr('title'))
+        
+        menubar = self.menuBar()
+        menubar.actions()[0].setText(self.tr('file'))
+        menubar.actions()[1].setText(self.tr('run'))
+        menubar.actions()[2].setText(self.tr('language'))
+        menubar.actions()[3].setText(self.tr('help'))
+        
+        file_menu = menubar.actions()[0].menu()
+        file_menu.actions()[0].setText(self.tr('new'))
+        file_menu.actions()[1].setText(self.tr('open'))
+        file_menu.actions()[2].setText(self.tr('save'))
+        file_menu.actions()[3].setText(self.tr('save_as'))
+        file_menu.actions()[5].setText(self.tr('exit'))
+        
+        run_menu = menubar.actions()[1].menu()
+        run_menu.actions()[0].setText(self.tr('run'))
+        run_menu.actions()[1].setText(self.tr('clear_output'))
+        
+        lang_menu = menubar.actions()[2].menu()
+        lang_menu.actions()[0].setText(SUPPORTED_LANGS['zh']['native'])
+        lang_menu.actions()[1].setText(SUPPORTED_LANGS['en']['native'])
+        lang_menu.actions()[2].setText(SUPPORTED_LANGS['ja']['native'])
+        lang_menu.actions()[3].setText(SUPPORTED_LANGS['ko']['native'])
+        lang_menu.actions()[4].setText(SUPPORTED_LANGS['fr']['native'])
+        lang_menu.actions()[5].setText(SUPPORTED_LANGS['de']['native'])
+        lang_menu.actions()[6].setText(SUPPORTED_LANGS['es']['native'])
+        
+        help_menu = menubar.actions()[3].menu()
+        help_menu.actions()[0].setText(self.tr('about'))
+        
+        toolbar = self.toolbar
+        toolbar.actions()[0].setText(self.tr('new'))
+        toolbar.actions()[1].setText(self.tr('open'))
+        toolbar.actions()[2].setText(self.tr('save'))
+        toolbar.actions()[4].setText(self.tr('run'))
+        toolbar.actions()[5].setText(self.tr('clear_output'))
+        
+        self.output_label.setText(self.tr('output'))
+    
+    def save_translated_json(self, target_lang):
+        filename = self.translator.save_translated_json(target_lang)
+        self.status_bar.showMessage(f"翻译文件已保存到: {filename}")
+    
+    def run_code(self):
+        self.clear_output()
+        code = self.editor.toPlainText()
+        
+        if not code.strip():
+            self.append_output(self.tr('error_empty'))
+            return
+        
+        try:
+            python_code = self.parser.parse_to_python(code)
+            
+            lines = code.strip().split('\n')
+            has_save_flag = False
+            save_filename = None
+            
+            for line in lines[:5]:
+                stripped_line = line.strip()
+                if stripped_line.startswith('#'):
+                    if '中蟒' in stripped_line or 'save_to_c' in stripped_line.lower() or '保存到c盘' in stripped_line:
+                        has_save_flag = True
+                        parts = stripped_line.split()
+                        for part in parts:
+                            if part.endswith('.py'):
+                                save_filename = part
+                                break
+                        break
+            
+            if has_save_flag:
+                save_dir = get_save_dir()
+                if not save_filename:
+                    if self.current_file:
+                        base_name = os.path.splitext(os.path.basename(self.current_file))[0]
+                        save_filename = f"{base_name}_translated.py"
+                    else:
+                        save_filename = "translated_code.py"
+                
+                save_path = os.path.join(save_dir, save_filename)
+                with open(save_path, 'w', encoding='utf-8') as f:
+                    f.write(python_code)
+                self.append_output(f"[保存到C盘] {save_path}")
+            
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
+            
+            try:
+                exec(python_code, {})
+                output = sys.stdout.getvalue()
+                error = sys.stderr.getvalue()
+                
+                if output:
+                    translated_output = self.translator.translate_to_target_lang(output, self.lang)
+                    self.append_output(translated_output)
+                if error:
+                    translated_error = self.translator.translate_error(error)
+                    self.append_output(translated_error)
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+                
+        except Exception as e:
+            error_msg = str(e)
+            translated_error = self.translator.translate_error(error_msg)
+            self.append_output(self.tr('error').format(translated_error))
+        
+        self.status_bar.showMessage(self.tr('run_complete'))
+    
+    def append_output(self, text):
+        self.output.append(text)
+        self.output.verticalScrollBar().setValue(self.output.verticalScrollBar().maximum())
+    
+    def clear_output(self):
+        self.output.clear()
+    
+    def show_about(self):
+        QMessageBox.about(self, self.tr('about'), self.tr('about_text'))
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = ZhIdle()
+    window.show()
+    sys.exit(app.exec())
