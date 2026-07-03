@@ -1,0 +1,1 @@
+i = input('Hello,world')
