@@ -39,6 +39,25 @@
     "hashlib": "哈希", "cryptography": "加密", "statistics": "统计", "decimal": "小数",
     "fractions": "分数", "pathlib": "路径", "exceptions": "异常"
   },
+  "turtle": {
+    "forward": "前进", "fd": "前进", "backward": "后退", "bk": "后退",
+    "left": "左转", "lt": "左转", "right": "右转", "rt": "右转",
+    "goto": "移动到", "setpos": "设置位置", "setposition": "设置位置",
+    "setx": "设置X", "sety": "设置Y", "setheading": "设置朝向", "seth": "设置朝向",
+    "home": "回家", "circle": "画圆", "dot": "圆点", "stamp": "印章",
+    "clearstamp": "清除印章", "clearstamps": "清除所有印章", "undo": "撤销",
+    "speed": "速度", "penup": "抬笔", "pu": "抬笔", "pendown": "落笔", "pd": "落笔",
+    "pensize": "笔宽", "width": "宽度", "pencolor": "笔色", "pencolor": "笔色",
+    "fillcolor": "填充色", "color": "颜色", "filling": "填充中", "begin_fill": "开始填充",
+    "end_fill": "结束填充", "reset": "重置", "clear": "清除", "write": "写入",
+    "hideturtle": "隐藏海龟", "ht": "隐藏海龟", "showturtle": "显示海龟", "st": "显示海龟",
+    "isvisible": "是否可见", "shape": "形状", "shapesize": "形状大小",
+    "tilt": "倾斜", "tiltangle": "倾斜角度", "settiltangle": "设置倾斜角度",
+    "heading": "朝向", "position": "位置", "pos": "位置", "xcor": "X坐标", "ycor": "Y坐标",
+    "distance": "距离", "towards": "朝向", "degrees": "角度", "radians": "弧度",
+    "screen": "屏幕", "bgcolor": "背景色", "title": "标题", "exitonclick": "点击退出",
+    "done": "完成", "mainloop": "主循环"
+  },
   "ui": {
     "Stay tuned for future updates.": "敬请期待"
   }
