@@ -40,7 +40,7 @@ This build has passed major functional tests and is considered **stable**, but i
 | :--- | :--- |
 | **当前版本 / Current Version** | `v1.3.0` |
 | **构建日期 / Build Date** | `2026-07-03` |
-| **目标正式版 / Target Official** | `v1.3.1`（预计 2026 年 7月 5日） |
+| **目标正式版 / Target Official** | `v1.3.1`（无限期推移 indefinitely postponed） |
 | **状态 / Status** | 🔴 开发中 / In development |
 
 ---
