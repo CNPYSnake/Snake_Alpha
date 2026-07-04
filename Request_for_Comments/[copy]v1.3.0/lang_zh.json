@@ -1,0 +1,45 @@
+{
+  "keywords": {
+    "if": "如果", "elif": "否则如果", "else": "否则",
+    "for": "对于", "while": "当", "def": "定义", "class": "类",
+    "return": "返回", "import": "导入", "from": "从", "as": "作为",
+    "try": "尝试", "except": "捕获", "finally": "最终",
+    "break": "中断", "continue": "继续", "pass": "传递",
+    "print": "打印", "begin": "开始", "end": "结束",
+    "and": "并", "or": "或", "not": "非", "True": "真", "False": "假",
+    "in": "属于", "not in": "不属于", "is": "是", "is not": "不是",
+    "in_start": "在", "in_end": "中",
+    "raise": "提升", "global": "全局", "nonlocal": "非局部",
+    "assert": "断言", "del": "删除", "match": "运算匹配", "case": "情况"
+  },
+  "builtins": {
+    "print": "打印", "input": "输入", "len": "长度", "type": "类型",
+    "int": "整数", "str": "字符串", "float": "浮点数", "list": "列表",
+    "dict": "字典", "set": "合集", "tuple": "元组", "range": "范围",
+    "sum": "求和", "max": "最大值", "min": "最小值", "sorted": "排序",
+    "enumerate": "枚举", "zip": "压缩", "open": "打开"
+  },
+  "types": {
+    "int": "整数", "float": "浮点数", "str": "字符串", "bool": "布尔",
+    "list": "列表", "dict": "字典", "set": "集合", "tuple": "元组",
+    "any": "任意", "None": "空", "callable": "可调用", "iterable": "可迭代"
+  },
+  "exceptions": {
+    "ValueError": "值错误", "TypeError": "类型错误", "NameError": "名称错误",
+    "IndexError": "索引错误", "KeyError": "键错误", "FileNotFoundError": "文件未找到",
+    "ZeroDivisionError": "零除错误", "AttributeError": "属性错误", "SyntaxError": "语法错误",
+    "IndentationError": "缩进错误", "RuntimeError": "运行时错误", "ImportError": "导入错误"
+  },
+  "modules": {
+    "time": "时间", "datetime": "日期时间", "math": "数学", "random": "随机",
+    "io": "文件", "sys": "系统", "os": "操作系统", "turtle": "海龟",
+    "array": "数组", "collections": "集合", "re": "正则", "socket": "网络",
+    "requests": "请求", "json": "JSON", "csv": "CSV", "xml": "XML",
+    "threading": "线程", "multiprocessing": "进程", "queue": "队列", "logging": "日志",
+    "hashlib": "哈希", "cryptography": "加密", "statistics": "统计", "decimal": "小数",
+    "fractions": "分数", "pathlib": "路径", "exceptions": "异常"
+  },
+  "ui": {
+    "Stay tuned for future updates.": "敬请期待"
+  }
+}
